@@ -11,14 +11,15 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { ImageUploadPicker } from '../common/ImageUploadPicker';
+import { optimizeImageFile } from '../../utils/imageOptimizer';
 
 export const AdminHeaderHeroManager: React.FC = () => {
   const { heroHeaderSettings, updateHeroHeaderSettings, siteSettings, updateSiteSettings } = useApp();
   
   const [formData, setFormData] = useState({ ...heroHeaderSettings });
-  const [companyName, setCompanyName] = useState(heroHeaderSettings.company_name_ar || siteSettings.company_name_ar || '');
-  const [companySlogan, setCompanySlogan] = useState(heroHeaderSettings.slogan_ar || siteSettings.slogan_ar || '');
-  const [logoUrl, setLogoUrl] = useState(siteSettings.logo_url || '');
+  const [companyName, setCompanyName] = useState(siteSettings.company_name_ar || heroHeaderSettings.company_name_ar || '');
+  const [companySlogan, setCompanySlogan] = useState(siteSettings.slogan_ar || heroHeaderSettings.slogan_ar || '');
+  const [logoUrl, setLogoUrl] = useState(siteSettings.logo_url || heroHeaderSettings.logo_url || '');
   const [savedNotice, setSavedNotice] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
@@ -28,35 +29,34 @@ export const AdminHeaderHeroManager: React.FC = () => {
 
   React.useEffect(() => {
     setFormData({ ...heroHeaderSettings });
-    setCompanyName(heroHeaderSettings.company_name_ar || siteSettings.company_name_ar || '');
-    setCompanySlogan(heroHeaderSettings.slogan_ar || siteSettings.slogan_ar || '');
-    setLogoUrl(siteSettings.logo_url || '');
+    setCompanyName(siteSettings.company_name_ar || heroHeaderSettings.company_name_ar || '');
+    setCompanySlogan(siteSettings.slogan_ar || heroHeaderSettings.slogan_ar || '');
+    setLogoUrl(siteSettings.logo_url || heroHeaderSettings.logo_url || '');
   }, [heroHeaderSettings, siteSettings]);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setLogoUrl(reader.result);
-          updateSiteSettings({ logo_url: reader.result });
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const optimized = await optimizeImageFile(file, 600, 600, 0.88);
+        setLogoUrl(optimized.dataUrl);
+        updateSiteSettings({ logo_url: optimized.dataUrl });
+        updateHeroHeaderSettings({ logo_url: optimized.dataUrl });
+      } catch (err) {
+        console.error('Failed to optimize logo:', err);
+      }
     }
   };
 
-  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setFormData((prev) => ({ ...prev, bg_image_url: reader.result as string }));
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const optimized = await optimizeImageFile(file, 1400, 900, 0.82);
+        setFormData((prev) => ({ ...prev, bg_image_url: optimized.dataUrl }));
+      } catch (err) {
+        console.error('Failed to optimize background:', err);
+      }
     }
   };
 
@@ -80,6 +80,7 @@ export const AdminHeaderHeroManager: React.FC = () => {
     e.preventDefault();
     updateHeroHeaderSettings({
       ...formData,
+      logo_url: logoUrl,
       company_name_ar: companyName,
       slogan_ar: companySlogan,
     });

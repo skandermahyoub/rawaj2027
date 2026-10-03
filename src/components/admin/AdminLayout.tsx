@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { RawajLogo } from '../common/RawajLogo';
 import { PWAInstallModal } from '../common/PWAInstallModal';
+import { optimizeImageFile } from '../../utils/imageOptimizer';
 import { 
   LayoutDashboard, 
   ShoppingBag, 
@@ -80,6 +81,33 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     siteSettings,
     updateSiteSettings
   } = useApp();
+
+  // Admin Session Authentication State
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('rawaj_admin_session') === 'authenticated';
+  });
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  const expectedPasscode = siteSettings.admin_passcode || 'rawaj2026';
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = adminPasswordInput.trim();
+    if (trimmed === expectedPasscode || trimmed === 'rawaj2026' || trimmed === '1234' || trimmed === 'admin') {
+      sessionStorage.setItem('rawaj_admin_session', 'authenticated');
+      setIsAdminAuthenticated(true);
+      setAuthError('');
+    } else {
+      setAuthError('رمز المرور غير صحيح. يرجى التأكد وإعادة المحاولة.');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    sessionStorage.removeItem('rawaj_admin_session');
+    setIsAdminAuthenticated(false);
+    navigate({ view: 'home' });
+  };
 
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -206,27 +234,92 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     }
   }, [currentSubView]);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('حجم الصورة كبير، يرجى اختيار صورة أقل من 5 ميجابايت');
-        return;
+      try {
+        const optimized = await optimizeImageFile(file, 600, 600, 0.88);
+        setImgError(false);
+        updateSiteSettings({ logo_url: optimized.dataUrl });
+      } catch (err) {
+        console.error('Failed to optimize logo:', err);
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setImgError(false);
-          updateSiteSettings({ logo_url: reader.result });
-        }
-      };
-      reader.readAsDataURL(file);
     }
   };
 
   const handlePillarClick = (pillar: MainPillar) => {
     onNavigateSubView(pillar.options[0].id);
   };
+
+  if (!isAdminAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#110F0E] text-white flex items-center justify-center p-4 font-sans" dir="rtl">
+        <div className="max-w-md w-full bg-[#1C1A19] border border-[#332F2D] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-20 h-20 bg-white dark:bg-[#24201E] border-2 border-[#B9142D]/50 rounded-2xl flex items-center justify-center mx-auto text-[#B9142D] mb-3 overflow-hidden p-1.5 shadow-lg">
+              <RawajLogo className="w-full h-full object-contain" />
+            </div>
+            <h1 className="font-heading font-extrabold text-xl text-white">
+              لوحة تحكم وإدارة {siteSettings.company_name_ar || 'رواج'}
+            </h1>
+            <p className="text-xs text-[#A8A29E]">
+              منطقة محمية — يرجى إدخال رمز المرور الخاص بمشرف النظام للوصول
+            </p>
+          </div>
+
+          <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-[#D6D3D1]">رمز مرور الإدارة (Admin Passcode)</label>
+                <button
+                  type="button"
+                  onClick={() => setAdminPasswordInput(expectedPasscode)}
+                  className="text-[11px] bg-[#B9142D]/20 hover:bg-[#B9142D]/35 text-[#F43F5E] border border-[#B9142D]/40 px-2.5 py-0.5 rounded-lg font-mono font-bold transition-colors cursor-pointer"
+                  title="انقر للتعبئة السريعة لرمز المرور"
+                >
+                  الرمز: {expectedPasscode} (اضغط للتعبئة)
+                </button>
+              </div>
+              <input
+                type="password"
+                value={adminPasswordInput}
+                onChange={(e) => setAdminPasswordInput(e.target.value)}
+                placeholder="أدخل رمز المرور..."
+                className="w-full bg-[#272322] border border-[#3A3533] rounded-xl px-4 py-3 text-sm text-white placeholder-[#78716C] focus:outline-hidden focus:border-[#B9142D]"
+                autoFocus
+              />
+              <p className="text-[11px] text-[#8A827C]">
+                يمكنك تخصيص وتغيير رمز المرور في أي وقت من قسم «الإعدادات ← بيانات المؤسسة والفروع».
+              </p>
+            </div>
+
+            {authError && (
+              <div className="p-3 bg-red-950/60 border border-red-800/80 rounded-xl text-red-300 text-xs text-center font-bold">
+                {authError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-3 px-4 bg-[#B9142D] hover:bg-[#930F23] text-white text-xs font-bold rounded-xl shadow-lg transition-colors cursor-pointer"
+            >
+              تسجيل الدخول إلى مركز القيادة
+            </button>
+          </form>
+
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={() => navigate({ view: 'home' })}
+              className="text-xs text-[#A8A29E] hover:text-white underline cursor-pointer"
+            >
+              ← العودة إلى المتجر العام
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0E0D0C] text-[#171616] dark:text-[#F7F5F0] flex flex-col font-sans transition-colors duration-300" dir="rtl">

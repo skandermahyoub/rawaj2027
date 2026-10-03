@@ -1,20 +1,51 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useApp } from '../../context/AppContext';
 
 interface RawajLogoProps {
   className?: string;
   size?: number; // pixel height/width
+  forceSvg?: boolean;
 }
 
 export const RawajLogo: React.FC<RawajLogoProps> = ({ 
-  className = "h-10 w-auto", 
+  className = "h-10 w-auto",
+  forceSvg = false
 }) => {
+  let customLogo = '';
+  let brandAlt = 'رواج للطباعة والإعلان والديكور';
+
+  try {
+    const app = useApp();
+    customLogo = app.siteSettings?.logo_url || app.heroHeaderSettings?.logo_url || app.footerSettings?.logo_url || '';
+    brandAlt = app.siteSettings?.company_name_ar || app.heroHeaderSettings?.company_name_ar || brandAlt;
+  } catch {
+    // Fallback if rendered outside AppProvider
+  }
+
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [customLogo]);
+
+  if (!forceSvg && customLogo && !imgError) {
+    return (
+      <img
+        src={customLogo}
+        alt={brandAlt}
+        className={`${className} object-contain`}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
   return (
     <svg 
       viewBox="0 0 240 300" 
       fill="none" 
       xmlns="http://www.w3.org/2000/svg" 
       className={className}
-      aria-label="رواج للطباعة والإعلان والديكور"
+      aria-label={brandAlt}
     >
       {/* Background glow or subtle contrast if dark mode */}
       

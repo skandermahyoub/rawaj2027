@@ -34,36 +34,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCustomQuote }) => {
     toggleTheme, 
     currentRoute, 
     navigate, 
-    quoteItems,
-    siteSettings,
-    updateSiteSettings
+    siteSettings
   } = useApp();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [installModalOpen, setInstallModalOpen] = useState(false);
-  const [imgError, setImgError] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const cartCount = quoteItems.length;
   const isActive = (view: string) => currentRoute.view === view;
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('حجم الصورة كبير، يرجى اختيار صورة أقل من 5 ميجابايت');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setImgError(false);
-          updateSiteSettings({ logo_url: reader.result });
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const navLinks = [
     { label: 'الرئيسية', view: 'home', icon: Home },
@@ -78,45 +55,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCustomQuote }) => {
   return (
     <>
       <header className="sticky top-0 z-40 bg-[#FAF8F5]/90 dark:bg-[#0E0D0C]/90 backdrop-blur-xl border-b border-[#E8E2D5]/80 dark:border-[#262320]/80 transition-colors duration-300">
-        {/* Hidden File Input for Logo Upload */}
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleLogoUpload} 
-          accept="image/*" 
-          className="hidden" 
-        />
-
         {/* Main Top Header Bar Row */}
         <div className="max-w-7xl mx-auto w-full h-16 sm:h-20 flex items-center justify-between gap-4 px-4 sm:px-8">
           
           {/* BRAND & LOGO SECTION */}
           <div className="flex items-center gap-3.5">
-            {/* Logo Container with Quick Upload Trigger */}
-            <div 
-              className="relative group cursor-pointer shrink-0 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-2xl bg-white dark:bg-[#1A1816] border-2 border-[#E8E2D5] dark:border-[#2D2A26] shadow-xs group-hover:border-brand-primary transition-all overflow-hidden"
-              onClick={() => fileInputRef.current?.click()}
-              title="انقر لتغيير أو رفع شعار رواج"
+            {/* Logo Container */}
+            <button 
+              onClick={() => navigate({ view: 'home' })}
+              className="relative shrink-0 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-2xl bg-white dark:bg-[#1A1816] border-2 border-[#E8E2D5] dark:border-[#2D2A26] shadow-xs hover:border-brand-primary transition-all overflow-hidden cursor-pointer p-1"
+              title={`الصفحة الرئيسية - ${siteSettings.company_name_ar || 'مطبعة رواج'}`}
             >
-              {siteSettings.logo_url && !imgError ? (
-                <img
-                  src={siteSettings.logo_url}
-                  alt={siteSettings.company_name_ar || 'رواج'}
-                  className="w-full h-full object-cover p-0"
-                  onError={() => setImgError(true)}
-                />
-              ) : (
-                <div className="w-full h-full p-0 text-[#171616] dark:text-[#F7F5F0] flex items-center justify-center">
-                  <RawajLogo className="w-full h-full object-cover" />
-                </div>
-              )}
-              
-              {/* Quick Upload Hover Overlay */}
-              <div className="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-white text-[9px] font-bold gap-0.5">
-                <Upload className="w-3.5 h-3.5 text-brand-accent" />
-                <span>شعار</span>
-              </div>
-            </div>
+              <RawajLogo className="w-full h-full object-contain" />
+            </button>
 
             {/* Agency Name & Subtitle */}
             <button 
@@ -226,8 +177,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCustomQuote }) => {
                     <h3 className="font-heading font-black text-sm text-[#171616] dark:text-[#F7F5F0]">
                       {siteSettings.company_name_ar || 'رواج للطباعة والإعلان'}
                     </h3>
-                    <p className="text-[10px] text-[#867F75] dark:text-[#9E978C]">
-                      صنعاء، الجمهورية اليمنية
+                    <p className="text-[10px] text-[#867F75] dark:text-[#9E978C] line-clamp-1">
+                      {siteSettings.address_ar || 'صنعاء، الجمهورية اليمنية'}
                     </p>
                   </div>
                 </div>

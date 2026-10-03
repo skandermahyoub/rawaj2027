@@ -29,23 +29,15 @@ export const Footer: React.FC = () => {
           {/* Brand Presentation Column */}
           <div className="lg:col-span-4 space-y-4 text-right">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-[#231F1D] border border-[#3E3835] p-2 flex items-center justify-center shadow-lg">
-                {siteSettings.logo_url ? (
-                  <img
-                    src={siteSettings.logo_url}
-                    alt={footerSettings.company_name_ar}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <RawajLogo className="h-8 w-auto text-white" />
-                )}
+              <div className="w-12 h-12 rounded-xl bg-[#231F1D] border border-[#3E3835] p-1.5 flex items-center justify-center shadow-lg overflow-hidden">
+                <RawajLogo className="w-full h-full object-contain text-white" />
               </div>
               <div>
                 <h3 className="font-heading font-black text-white text-base sm:text-lg">
-                  {footerSettings.company_name_ar || 'وكالة رواج للطباعة والإعلان والديكور'}
+                  {footerSettings.company_name_ar || siteSettings.company_name_ar || 'وكالة رواج للطباعة والإعلان والديكور'}
                 </h3>
                 <p className="text-[11px] text-[#D4AF37] font-semibold">
-                  {footerSettings.slogan_ar || 'صناع الهوية البصرية وهندسة التغليف'}
+                  {footerSettings.slogan_ar || siteSettings.slogan_ar || 'صناع الهوية البصرية وهندسة التغليف'}
                 </p>
               </div>
             </div>
@@ -59,17 +51,17 @@ export const Footer: React.FC = () => {
               <div className="flex items-center gap-2 text-[#DDD5C7]">
                 <Phone className="w-3.5 h-3.5 text-brand-primary" />
                 <span>الرقم الموحد:</span>
-                <span className="font-mono font-bold text-white" dir="ltr">{footerSettings.phone}</span>
+                <span className="font-mono font-bold text-white" dir="ltr">{footerSettings.phone || siteSettings.phone}</span>
               </div>
               <div className="flex items-center gap-2 text-[#DDD5C7]">
                 <MessageSquare className="w-3.5 h-3.5 text-brand-primary" />
                 <span>واتساب الأعمال:</span>
-                <span className="font-mono font-bold text-white" dir="ltr">{footerSettings.mobile_whatsapp}</span>
+                <span className="font-mono font-bold text-white" dir="ltr">{footerSettings.mobile_whatsapp || siteSettings.mobile_whatsapp}</span>
               </div>
               <div className="flex items-center gap-2 text-[#DDD5C7]">
                 <Mail className="w-3.5 h-3.5 text-brand-accent" />
                 <span>البريد الرسمي:</span>
-                <span className="font-mono text-white">{footerSettings.email}</span>
+                <span className="font-mono text-white">{footerSettings.email || siteSettings.email}</span>
               </div>
             </div>
           </div>

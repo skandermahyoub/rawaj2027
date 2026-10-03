@@ -19,6 +19,7 @@ export const AdminSettingsManager: React.FC = () => {
   const [email, setEmail] = useState(siteSettings.email);
   const [addressAr, setAddressAr] = useState(siteSettings.address_ar);
   const [workingHoursAr, setWorkingHoursAr] = useState(siteSettings.working_hours_ar);
+  const [adminPasscode, setAdminPasscode] = useState(siteSettings.admin_passcode || 'rawaj2026');
   const [announcementText, setAnnouncementText] = useState(siteSettings.announcement_banner?.text_ar || '');
   const [announcementEnabled, setAnnouncementEnabled] = useState(Boolean(siteSettings.announcement_banner?.enabled));
   const [savedToast, setSavedToast] = useState(false);
@@ -35,6 +36,7 @@ export const AdminSettingsManager: React.FC = () => {
     setEmail(siteSettings.email);
     setAddressAr(siteSettings.address_ar);
     setWorkingHoursAr(siteSettings.working_hours_ar);
+    setAdminPasscode(siteSettings.admin_passcode || 'rawaj2026');
     setAnnouncementText(siteSettings.announcement_banner?.text_ar || '');
     setAnnouncementEnabled(Boolean(siteSettings.announcement_banner?.enabled));
   }, [siteSettings]);
@@ -69,6 +71,7 @@ export const AdminSettingsManager: React.FC = () => {
       slogan_ar: sloganAr,
       slogan_en: sloganEn,
       logo_url: logoUrl,
+      admin_passcode: adminPasscode.trim() || 'rawaj2026',
       founding_year: foundingYear,
       phone: phone,
       mobile_whatsapp: mobileWhatsapp,
@@ -302,6 +305,29 @@ export const AdminSettingsManager: React.FC = () => {
                 className="w-full bg-[#FAF7F2] dark:bg-[#252222] border border-[#E7E0D3] rounded-lg px-3 py-2 text-xs"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Admin Security Passcode */}
+        <div className="space-y-3 pb-4 border-b border-[#E7E0D3] dark:border-[#332F2F]">
+          <h3 className="font-heading font-bold text-sm text-[#171616] dark:text-white">
+            أمان لوحة التحكم (رمز مرور الإدارة - Admin Passcode)
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div className="space-y-1">
+              <label className="font-bold">رمز المرور الخاص بالدخول إلى لوحة الإدارة:</label>
+              <input
+                type="text"
+                required
+                value={adminPasscode}
+                onChange={(e) => setAdminPasscode(e.target.value)}
+                placeholder="rawaj2026"
+                className="w-full bg-[#FAF7F2] dark:bg-[#252222] border border-[#E7E0D3] rounded-lg px-3 py-2 text-xs font-mono font-bold text-[#B9142D]"
+              />
+            </div>
+            <p className="text-[11px] text-[#78716C] dark:text-[#A8A29E] leading-relaxed">
+              يُطلب هذا الرمز عند الدخول إلى لوحة التحكم لحماية الإعدادات والطلبات من الزوار. الرمز الافتراضي هو <code className="font-mono font-bold text-[#B9142D]">rawaj2026</code> ويمكنك تغييره هنا وحفظ الإعدادات.
+            </p>
           </div>
         </div>
 

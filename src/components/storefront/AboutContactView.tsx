@@ -17,7 +17,8 @@ import {
 } from 'lucide-react';
 
 export const AboutContactView: React.FC = () => {
-  const { siteSettings, navigate } = useApp();
+  const { siteSettings, footerSettings, aboutUsData } = useApp();
+  const branches = footerSettings.branches || [];
 
   return (
     <div className="space-y-8 pb-16 text-right">
@@ -29,15 +30,15 @@ export const AboutContactView: React.FC = () => {
       <div className="bg-[#FFFDFA] dark:bg-[#1C1A1A] rounded-2xl border border-[#E7E0D3] dark:border-[#332F2F] p-6 sm:p-8 shadow-xs space-y-4">
         <div className="inline-flex items-center gap-2 bg-brand-primary-10 text-brand-primary px-3 py-1 rounded-full text-xs font-bold">
           <Award className="w-4 h-4" />
-          <span>تأسست عام 2008 — أكثر من 18 عاماً من الريادة</span>
+          <span>تأسست عام {siteSettings.founding_year || 2008} — أكثر من {aboutUsData.years_experience || 18} عاماً من الريادة</span>
         </div>
 
         <h1 className="font-heading font-extrabold text-xl sm:text-3xl text-[#171616] dark:text-[#F5F3EF]">
-          رواج للطباعة والإعلان والديكور والتوريد الشامل
+          {siteSettings.company_name_ar || 'رواج للطباعة والإعلان والديكور والتوريد الشامل'}
         </h1>
 
         <p className="text-xs sm:text-sm text-[#57534E] dark:text-[#A8A29E] leading-relaxed max-w-3xl">
-          انطلقت «رواج» في العاصمة صنعاء عام 2008 كصرح طباعي وإعلاني متخصص، وتطورت اليوم لتصبح <strong>منصة تجارة الخدمات والتوريد الشامل (One-stop Print & Advertising Procurement Platform)</strong> التي تمكن الشركات، المصانع، والمؤسسات التجارية من طلب وتنفيذ أي منتج طباعي، إعلاني، ديكوري، أو تغليفي بمواصفات فنية دقيقة وتنفيذ داخلي أو توريد دولي موثوق.
+          {footerSettings.description_ar || 'انطلقت «رواج» في العاصمة صنعاء كصرح طباعي وإعلاني متخصص، وتطورت اليوم لتصبح منصة تجارة الخدمات والتوريد الشامل التي تمكن الشركات، المصانع، والمؤسسات التجارية من طلب وتنفيذ أي منتج طباعي، إعلاني، ديكوري، أو تغليفي بمواصفات فنية دقيقة وتنفيذ داخلي أو توريد دولي موثوق.'}
         </p>
 
         {/* Pillars */}
@@ -155,21 +156,35 @@ export const AboutContactView: React.FC = () => {
         <div className="bg-[#FFFDFA] dark:bg-[#1C1A1A] rounded-2xl border border-[#E7E0D3] dark:border-[#332F2F] p-6 space-y-4 shadow-xs flex flex-col justify-between">
           <div className="space-y-3">
             <h2 className="font-heading font-bold text-base sm:text-lg text-[#171616] dark:text-white pb-2 border-b border-[#E7E0D3] dark:border-[#332F2F]">
-              موقع المقر الرئيسي في صنعاء
+              فروع ومعامل {siteSettings.company_name_ar || 'رواج'}
             </h2>
             
             {/* Visual Location Frame */}
-            <div className="aspect-16/10 rounded-xl overflow-hidden bg-[#FAF7F2] dark:bg-[#252222] border border-[#E7E0D3] dark:border-[#332F2F] flex flex-col items-center justify-center p-6 text-center space-y-2">
-              <div className="w-12 h-12 rounded-full bg-brand-primary-10 text-brand-primary flex items-center justify-center mx-auto shadow-xs">
-                <MapPin className="w-6 h-6" />
+            <div className="rounded-xl overflow-hidden bg-[#FAF7F2] dark:bg-[#252222] border border-[#E7E0D3] dark:border-[#332F2F] flex flex-col items-center justify-center p-5 text-center space-y-2">
+              <div className="w-11 h-11 rounded-full bg-brand-primary-10 text-brand-primary flex items-center justify-center mx-auto shadow-xs">
+                <MapPin className="w-5 h-5" />
               </div>
               <div className="font-heading font-bold text-sm text-[#171616] dark:text-white">
-                صنعاء - الدائري - جولة الجامعة الجديدة
+                {siteSettings.address_ar}
               </div>
               <p className="text-xs text-[#78716C] dark:text-[#A8A29E] max-w-xs">
-                بداية شارع العدل — بجوار أهم المراكز التجارية والخدمية
+                {siteSettings.working_hours_ar}
               </p>
             </div>
+
+            {branches.length > 0 && (
+              <div className="space-y-2 pt-2">
+                {branches.map((b) => (
+                  <div key={b.id} className="p-3 rounded-xl bg-[#FAF7F2] dark:bg-[#221F1F] border border-[#E7E0D3] dark:border-[#332F2F] flex items-center justify-between gap-2 text-xs">
+                    <div>
+                      <div className="font-bold text-[#171616] dark:text-white">{b.name_ar}</div>
+                      <div className="text-[11px] text-[#78716C] dark:text-[#A8A29E]">{b.address_ar}</div>
+                    </div>
+                    <span className="font-mono text-[11px] font-bold text-brand-primary shrink-0" dir="ltr">{b.phone}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="pt-2">

@@ -13,12 +13,12 @@ import {
 } from 'lucide-react';
 
 export const HomeContactModule: React.FC = () => {
-  const { siteSettings, footerSettings, submitContactMessage } = useApp();
+  const { siteSettings, footerSettings, departments, submitContactMessage } = useApp();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [serviceInterest, setServiceInterest] = useState('طباعة تجارية وتغليف');
+  const [serviceInterest, setServiceInterest] = useState(departments[0]?.name_ar || 'طباعة تجارية وتغليف');
   const [message, setMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -137,7 +137,7 @@ export const HomeContactModule: React.FC = () => {
             <div className="pt-3 border-t border-[#EBE4D5] dark:border-[#352F2D] space-y-2 text-xs text-[#746E67] dark:text-[#A0988F]">
               <div className="flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-brand-primary shrink-0" />
-                <span>أوقات العمل: السبت - الخميس: 8:00 صباحاً - 8:00 مساءً</span>
+                <span>أوقات العمل: {siteSettings.working_hours_ar || 'السبت - الخميس: 8:00 صباحاً - 9:00 مساءً'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-brand-primary shrink-0" />
@@ -221,11 +221,11 @@ export const HomeContactModule: React.FC = () => {
                     onChange={(e) => setServiceInterest(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-[#DCD5C5] dark:border-[#3A3533] bg-[#FCFAF5] dark:bg-[#1A1817] text-xs sm:text-sm focus:outline-hidden focus:border-brand-primary"
                   >
-                    <option value="طباعة تجارية وتغليف">طباعة أوفست وتغليف وعلب</option>
-                    <option value="ملصقات وليبل رول">ملصقات وليبل رول للمنتجات</option>
-                    <option value="واجهات كلادينج وحروف مضيئة">واجهات كلادينج وحروف مضيئة</option>
-                    <option value="طباعة ملابس وتطريز">يونيفورم وملابس وتطريز آلي</option>
-                    <option value="هدايا ومؤتمرات">هدايا دعائية ومطبوعات مؤتمرات</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.name_ar}>
+                        {d.name_ar}
+                      </option>
+                    ))}
                     <option value="استشارة فنية وزيارة ميدانية">استشارة فنية وزيارة ميدانية</option>
                   </select>
                 </div>

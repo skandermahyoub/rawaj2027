@@ -274,6 +274,12 @@ interface AppContextType {
   deletePortfolioProject: (id: string) => void;
 
   // Taxonomy & Settings & Users
+  createDepartment: (dept: Omit<Department, 'id'>) => void;
+  updateDepartment: (id: string, dept: Partial<Department>) => void;
+  deleteDepartment: (id: string) => void;
+  createCategory: (cat: Omit<Category, 'id'>) => void;
+  updateCategory: (id: string, cat: Partial<Category>) => void;
+  deleteCategory: (id: string) => void;
   updateSiteSettings: (settings: Partial<SiteSettings>) => void;
   addUser: (user: Omit<User, 'id' | 'createdAt'>) => void;
   deleteUser: (userId: string) => boolean;
@@ -318,6 +324,8 @@ const STORAGE_KEYS = {
   THEME_CUSTOM: 'rawaj_theme_custom_v2',
   CONTACT_MESSAGES: 'rawaj_contact_messages_v2',
   BRANDS_MODE: 'rawaj_brands_mode_v2',
+  DEPARTMENTS: 'rawaj_departments_v2',
+  CATEGORIES: 'rawaj_categories_v2',
 };
 
 // Synonyms map for rich search expansion
@@ -381,20 +389,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return true;
     } catch (err: any) {
       console.warn(`[Storage] Quota exceeded or error saving "${key}":`, err?.message || err);
-      if (err?.name === 'QuotaExceededError' || err?.code === 22 || (err?.message && err.message.toLowerCase().includes('quota'))) {
-        try {
-          // If quota is exceeded, clear non-critical bulky media storage from localStorage
-          if (key !== STORAGE_KEYS.MEDIA) {
-            localStorage.removeItem(STORAGE_KEYS.MEDIA);
-            const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-            localStorage.setItem(key, serialized);
-            return true;
+      try {
+        // Clear non-critical bulky cached collections from localStorage
+        const nonCriticalKeys = [
+          STORAGE_KEYS.MEDIA,
+          STORAGE_KEYS.PORTFOLIO,
+          STORAGE_KEYS.BLOG,
+          STORAGE_KEYS.FAQ,
+          STORAGE_KEYS.TESTIMONIALS,
+          STORAGE_KEYS.FEATURES,
+          STORAGE_KEYS.CLIENT_LOGOS,
+        ];
+        nonCriticalKeys.forEach((k) => {
+          if (k !== key) localStorage.removeItem(k);
+        });
+
+        // Clear any leftover firestore target keys
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const lKey = localStorage.key(i);
+          if (lKey && (lKey.startsWith('firestore_') || lKey.startsWith('rawaj_temp_'))) {
+            localStorage.removeItem(lKey);
           }
-        } catch {
-          // Ignore safely
         }
+
+        const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+        localStorage.setItem(key, serialized);
+        return true;
+      } catch {
+        // Ignore gracefully without throwing or breaking React execution
+        return false;
       }
-      return false;
     }
   }
 
@@ -406,8 +430,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // State initialization with localStorage fallback
-  const [departments] = useState<Department[]>(INITIAL_DEPARTMENTS);
-  const [categories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [departments, setDepartments] = useState<Department[]>(() => {
+    return safeStorageLoad(STORAGE_KEYS.DEPARTMENTS, INITIAL_DEPARTMENTS);
+  });
+  const [categories, setCategories] = useState<Category[]>(() => {
+    return safeStorageLoad(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
+  });
   const [subcategories] = useState<Subcategory[]>([]);
   const [industrySectors] = useState<IndustrySector[]>(INITIAL_INDUSTRY_SECTORS);
 
@@ -648,6 +676,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let unsubSettings: (() => void) | undefined;
     let unsubDesignTasks: (() => void) | undefined;
     let unsubHomeSlides: (() => void) | undefined;
+    let unsubMarquee: (() => void) | undefined;
+    let unsubFeatures: (() => void) | undefined;
+    let unsubClientLogos: (() => void) | undefined;
+    let unsubTestimonials: (() => void) | undefined;
+    let unsubFaq: (() => void) | undefined;
+    let unsubContactMessages: (() => void) | undefined;
+    let unsubUsers: (() => void) | undefined;
 
     try {
       // Quotes Listener
@@ -659,11 +694,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           setQuoteRequests(list);
+          safeStorageSave(STORAGE_KEYS.QUOTES, list);
         }
         setIsCloudSynced(true);
-      }, (err) => {
-        console.warn('Firestore quotes listener note:', err.message);
-      });
+      }, (err) => console.warn('Firestore quotes listener:', err.message));
 
       // Services Listener
       unsubServices = onSnapshot(collection(db, 'services'), (snapshot) => {
@@ -672,27 +706,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           snapshot.forEach((docSnap) => {
             list.push(docSnap.data() as Service);
           });
-          
-          // Self-heal: Merge and persist any newly added initial services (such as the 14 expanded services)
-          const cloudIds = new Set(list.map((s) => s.id));
-          const missing = INITIAL_SERVICES.filter((s) => !cloudIds.has(s.id));
-          if (missing.length > 0) {
-            missing.forEach((s) => {
-              setDoc(doc(db, 'services', s.id), s, { merge: true }).catch((e) => console.warn('Sync missing service note:', e));
-            });
-            list.push(...missing);
-          }
-
           list.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
           setServices(list);
-        } else {
-          // If collection is empty, seed all INITIAL_SERVICES
-          INITIAL_SERVICES.forEach((s) => {
-            setDoc(doc(db, 'services', s.id), s, { merge: true }).catch((e) => console.warn(e));
-          });
-          setServices(INITIAL_SERVICES);
+          safeStorageSave(STORAGE_KEYS.SERVICES, list);
         }
-      }, (err) => console.warn('Firestore services listener note:', err.message));
+      }, (err) => console.warn('Firestore services listener:', err.message));
 
       // Templates Listener
       unsubTemplates = onSnapshot(collection(db, 'templates'), (snapshot) => {
@@ -701,17 +719,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           snapshot.forEach((docSnap) => {
             list.push(docSnap.data() as ServiceTemplate);
           });
-          const cloudIds = new Set(list.map((t) => t.id));
-          const missing = INITIAL_TEMPLATES.filter((t) => !cloudIds.has(t.id));
-          if (missing.length > 0) {
-            missing.forEach((t) => {
-              setDoc(doc(db, 'templates', t.id), t, { merge: true }).catch((e) => console.warn(e));
-            });
-            list.push(...missing);
-          }
           setTemplates(list);
+          safeStorageSave(STORAGE_KEYS.TEMPLATES, list);
         }
-      }, (err) => console.warn('Firestore templates listener note:', err.message));
+      }, (err) => console.warn('Firestore templates listener:', err.message));
 
       // Packages Listener
       unsubPackages = onSnapshot(collection(db, 'packages'), (snapshot) => {
@@ -720,23 +731,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           snapshot.forEach((docSnap) => {
             list.push(docSnap.data() as Package);
           });
-          const initMap = new Map(INITIAL_PACKAGES.map((p) => [p.id, p]));
-          const cloudIds = new Set(list.map((p) => p.id));
-          const missing = INITIAL_PACKAGES.filter((p) => !cloudIds.has(p.id));
-          if (missing.length > 0) {
-            missing.forEach((p) => {
-              setDoc(doc(db, 'packages', p.id), p, { merge: true }).catch((e) => console.warn(e));
-            });
-            list.push(...missing);
-          }
-          // Merge rich sector fields if missing in cloud document
-          const enriched = list.map((p) => {
-            const init = initMap.get(p.id);
-            return init ? { ...init, ...p, items_breakdown: p.items_breakdown || init.items_breakdown, target_sector_ar: p.target_sector_ar || init.target_sector_ar } : p;
-          });
-          setPackages(enriched);
+          setPackages(list);
+          safeStorageSave(STORAGE_KEYS.PACKAGES, list);
         }
-      }, (err) => console.warn('Firestore packages listener note:', err.message));
+      }, (err) => console.warn('Firestore packages listener:', err.message));
 
       // Portfolio Listener
       unsubPortfolio = onSnapshot(collection(db, 'portfolio'), (snapshot) => {
@@ -746,8 +744,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             list.push(docSnap.data() as PortfolioProject);
           });
           setPortfolioProjects(list);
+          safeStorageSave(STORAGE_KEYS.PORTFOLIO, list);
         }
-      }, (err) => console.warn('Firestore portfolio listener note:', err.message));
+      }, (err) => console.warn('Firestore portfolio listener:', err.message));
 
       // Blog Listener
       unsubBlog = onSnapshot(collection(db, 'blog'), (snapshot) => {
@@ -757,8 +756,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             list.push(docSnap.data() as BlogPost);
           });
           setBlogPosts(list);
+          safeStorageSave(STORAGE_KEYS.BLOG, list);
         }
-      }, (err) => console.warn('Firestore blog listener note:', err.message));
+      }, (err) => console.warn('Firestore blog listener:', err.message));
 
       // Media Listener
       unsubMedia = onSnapshot(collection(db, 'media'), (snapshot) => {
@@ -768,8 +768,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             list.push(docSnap.data() as MediaItem);
           });
           setMediaItems(list);
+          safeStorageSave(STORAGE_KEYS.MEDIA, list);
         }
-      }, (err) => console.warn('Firestore media listener note:', err.message));
+      }, (err) => console.warn('Firestore media listener:', err.message));
 
       // Home Slides Listener
       unsubHomeSlides = onSnapshot(collection(db, 'home_slides'), (snapshot) => {
@@ -782,9 +783,99 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setHomeSlides(list);
           safeStorageSave(STORAGE_KEYS.HOME_SLIDES, list);
         }
-      }, (err) => console.warn('Firestore home_slides listener note:', err.message));
+      }, (err) => console.warn('Firestore home_slides listener:', err.message));
 
-      // Settings Listener (Safely preserves user settings, logos, home module order, promo banners & hero headers)
+      // Marquee Listener
+      unsubMarquee = onSnapshot(collection(db, 'marquee'), (snapshot) => {
+        if (!snapshot.empty) {
+          const list: MarqueeTickerItem[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push(docSnap.data() as MarqueeTickerItem);
+          });
+          list.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+          setMarqueeItems(list);
+          safeStorageSave(STORAGE_KEYS.MARQUEE, list);
+        }
+      }, (err) => console.warn('Firestore marquee listener:', err.message));
+
+      // Features Listener
+      unsubFeatures = onSnapshot(collection(db, 'features'), (snapshot) => {
+        if (!snapshot.empty) {
+          const list: RawajFeature[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push(docSnap.data() as RawajFeature);
+          });
+          list.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+          setRawajFeatures(list);
+          safeStorageSave(STORAGE_KEYS.FEATURES, list);
+        }
+      }, (err) => console.warn('Firestore features listener:', err.message));
+
+      // Client Logos Listener
+      unsubClientLogos = onSnapshot(collection(db, 'client_logos'), (snapshot) => {
+        if (!snapshot.empty) {
+          const list: ClientLogo[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push(docSnap.data() as ClientLogo);
+          });
+          list.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+          setClientLogos(list);
+          safeStorageSave(STORAGE_KEYS.CLIENT_LOGOS, list);
+        }
+      }, (err) => console.warn('Firestore client_logos listener:', err.message));
+
+      // Testimonials Listener
+      unsubTestimonials = onSnapshot(collection(db, 'testimonials'), (snapshot) => {
+        if (!snapshot.empty) {
+          const list: Testimonial[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push(docSnap.data() as Testimonial);
+          });
+          list.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+          setTestimonials(list);
+          safeStorageSave(STORAGE_KEYS.TESTIMONIALS, list);
+        }
+      }, (err) => console.warn('Firestore testimonials listener:', err.message));
+
+      // FAQ Listener
+      unsubFaq = onSnapshot(collection(db, 'faq'), (snapshot) => {
+        if (!snapshot.empty) {
+          const list: GlobalFAQItem[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push(docSnap.data() as GlobalFAQItem);
+          });
+          list.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+          setFaqItems(list);
+          safeStorageSave(STORAGE_KEYS.FAQ, list);
+        }
+      }, (err) => console.warn('Firestore faq listener:', err.message));
+
+      // Contact Messages Listener
+      unsubContactMessages = onSnapshot(collection(db, 'contact_messages'), (snapshot) => {
+        if (!snapshot.empty) {
+          const list: ContactFormMessage[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push(docSnap.data() as ContactFormMessage);
+          });
+          list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          setContactMessages(list);
+          safeStorageSave(STORAGE_KEYS.CONTACT_MESSAGES, list);
+        }
+      }, (err) => console.warn('Firestore contact_messages listener:', err.message));
+
+      // Users Listener
+      unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+        if (!snapshot.empty) {
+          const list: User[] = [];
+          snapshot.forEach((docSnap) => {
+            list.push(docSnap.data() as User);
+          });
+          setUsers(list);
+          safeStorageSave(STORAGE_KEYS.USERS, list);
+        }
+      }, (err) => console.warn('Firestore users listener:', err.message));
+
+      // Settings Listener
       unsubSettings = onSnapshot(collection(db, 'settings'), (snapshot) => {
         if (!snapshot.empty) {
           snapshot.forEach((docSnap) => {
@@ -794,8 +885,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 const merged: SiteSettings = {
                   ...prev,
                   ...cloud,
-                  // Never allow an empty or missing logo_url from cloud to wipe a user-uploaded logo
-                  logo_url: cloud.logo_url || prev.logo_url || '',
+                  logo_url: cloud.logo_url !== undefined ? cloud.logo_url : (prev.logo_url || ''),
                   company_name_ar: cloud.company_name_ar || prev.company_name_ar || '',
                   slogan_ar: cloud.slogan_ar || prev.slogan_ar || '',
                   mobile_whatsapp: cloud.mobile_whatsapp || prev.mobile_whatsapp || '',
@@ -803,6 +893,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 safeStorageSave(STORAGE_KEYS.SETTINGS, merged);
                 return merged;
               });
+              // Keep heroHeaderSettings and footerSettings logo/brand synchronized if cloud general has them
+              if (cloud.logo_url !== undefined || cloud.company_name_ar || cloud.slogan_ar) {
+                setHeroHeaderSettings((prev) => {
+                  const synced = {
+                    ...prev,
+                    logo_url: cloud.logo_url !== undefined ? cloud.logo_url : prev.logo_url,
+                    company_name_ar: cloud.company_name_ar || prev.company_name_ar,
+                    slogan_ar: cloud.slogan_ar || prev.slogan_ar,
+                  };
+                  safeStorageSave(STORAGE_KEYS.HERO_HEADER, synced);
+                  return synced;
+                });
+                setFooterSettings((prev) => {
+                  const synced = {
+                    ...prev,
+                    logo_url: cloud.logo_url !== undefined ? cloud.logo_url : prev.logo_url,
+                    company_name_ar: cloud.company_name_ar || prev.company_name_ar,
+                    slogan_ar: cloud.slogan_ar || prev.slogan_ar,
+                    phone: cloud.phone || prev.phone,
+                    mobile_whatsapp: cloud.mobile_whatsapp || prev.mobile_whatsapp,
+                    email: cloud.email || prev.email,
+                  };
+                  safeStorageSave(STORAGE_KEYS.FOOTER, synced);
+                  return synced;
+                });
+              }
             }
             if (docSnap.id === 'home_modules_order') {
               const cloud = docSnap.data();
@@ -826,7 +942,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 safeStorageSave(STORAGE_KEYS.FOOTER, cloud);
               }
             }
-            if (docSnap.id === 'about_us') {
+            if (docSnap.id === 'about_us' || docSnap.id === 'about_us_module') {
               const cloud = docSnap.data() as AboutUsModuleData;
               if (cloud) {
                 setAboutUsData(cloud);
@@ -845,11 +961,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               if (cloud) {
                 setHeroHeaderSettings(cloud);
                 safeStorageSave(STORAGE_KEYS.HERO_HEADER, cloud);
+                if (cloud.logo_url) {
+                  setSiteSettings((prev) => {
+                    if (prev.logo_url) return prev;
+                    const synced = { ...prev, logo_url: cloud.logo_url };
+                    safeStorageSave(STORAGE_KEYS.SETTINGS, synced);
+                    return synced;
+                  });
+                }
+              }
+            }
+            if (docSnap.id === 'brands_display') {
+              const cloud = docSnap.data();
+              if (cloud && cloud.mode) {
+                setBrandsDisplayMode(cloud.mode as BrandDisplayMode);
+                safeStorageSave(STORAGE_KEYS.BRANDS_MODE, cloud.mode);
+              }
+            }
+            if (docSnap.id === 'taxonomy') {
+              const cloud = docSnap.data();
+              if (cloud) {
+                if (Array.isArray(cloud.departments) && cloud.departments.length > 0) {
+                  setDepartments(cloud.departments);
+                  safeStorageSave(STORAGE_KEYS.DEPARTMENTS, cloud.departments);
+                }
+                if (Array.isArray(cloud.categories) && cloud.categories.length > 0) {
+                  setCategories(cloud.categories);
+                  safeStorageSave(STORAGE_KEYS.CATEGORIES, cloud.categories);
+                }
               }
             }
           });
         }
-      }, (err) => console.warn('Firestore settings listener note:', err.message));
+      }, (err) => console.warn('Firestore settings listener:', err.message));
 
       // Design Tasks Listener
       unsubDesignTasks = onSnapshot(collection(db, 'design_tasks'), (snapshot) => {
@@ -860,8 +1004,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           setDesignTasks(list);
+          safeStorageSave(STORAGE_KEYS.DESIGN_TASKS, list);
         }
-      }, (err) => console.warn('Firestore design_tasks listener note:', err.message));
+      }, (err) => console.warn('Firestore design_tasks listener:', err.message));
 
     } catch (e) {
       console.warn('Firebase setup note:', e);
@@ -878,6 +1023,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (unsubSettings) unsubSettings();
       if (unsubDesignTasks) unsubDesignTasks();
       if (unsubHomeSlides) unsubHomeSlides();
+      if (unsubMarquee) unsubMarquee();
+      if (unsubFeatures) unsubFeatures();
+      if (unsubClientLogos) unsubClientLogos();
+      if (unsubTestimonials) unsubTestimonials();
+      if (unsubFaq) unsubFaq();
+      if (unsubContactMessages) unsubContactMessages();
+      if (unsubUsers) unsubUsers();
     };
   }, []);
 
@@ -1007,11 +1159,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     safeStorageSave(STORAGE_KEYS.BRANDS_MODE, brandsDisplayMode);
   }, [brandsDisplayMode]);
 
+  // Dynamically sync browser Favicon, Apple Touch Icon & Document Title with uploaded logo & company name
+  useEffect(() => {
+    const activeLogo = siteSettings.logo_url || heroHeaderSettings.logo_url || footerSettings.logo_url;
+    if (activeLogo) {
+      let iconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+      if (!iconLink) {
+        iconLink = document.createElement('link');
+        iconLink.rel = 'icon';
+        document.head.appendChild(iconLink);
+      }
+      iconLink.href = activeLogo;
+
+      let appleLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
+      if (!appleLink) {
+        appleLink = document.createElement('link');
+        appleLink.rel = 'apple-touch-icon';
+        document.head.appendChild(appleLink);
+      }
+      appleLink.href = activeLogo;
+    }
+
+    if (siteSettings.company_name_ar) {
+      document.title = `${siteSettings.company_name_ar} | ${siteSettings.slogan_ar || 'منصة خدمات الطباعة والتوريد'}`;
+    }
+  }, [siteSettings.logo_url, heroHeaderSettings.logo_url, footerSettings.logo_url, siteSettings.company_name_ar, siteSettings.slogan_ar]);
+
   // Module 1: Hero Header settings
   const updateHeroHeaderSettings = (settings: Partial<HeroHeaderSettings>) => {
     const updated = { ...heroHeaderSettings, ...settings };
     setHeroHeaderSettings(updated);
+    safeStorageSave(STORAGE_KEYS.HERO_HEADER, updated);
     setDoc(doc(db, 'settings', 'hero_header'), updated, { merge: true }).catch((e) => console.warn(e));
+
+    // Synchronize shared brand identity fields with siteSettings & footerSettings
+    const sharedSiteUpdates: Partial<SiteSettings> = {};
+    const sharedFooterUpdates: Partial<FooterSettings> = {};
+    if (settings.logo_url !== undefined) {
+      sharedSiteUpdates.logo_url = settings.logo_url;
+      sharedFooterUpdates.logo_url = settings.logo_url;
+    }
+    if (settings.company_name_ar) {
+      sharedSiteUpdates.company_name_ar = settings.company_name_ar;
+      sharedFooterUpdates.company_name_ar = settings.company_name_ar;
+    }
+    if (settings.slogan_ar) {
+      sharedSiteUpdates.slogan_ar = settings.slogan_ar;
+      sharedFooterUpdates.slogan_ar = settings.slogan_ar;
+    }
+    if (Object.keys(sharedSiteUpdates).length > 0) {
+      setSiteSettings((prev) => {
+        const next = { ...prev, ...sharedSiteUpdates };
+        safeStorageSave(STORAGE_KEYS.SETTINGS, next);
+        setDoc(doc(db, 'settings', 'general'), next, { merge: true }).catch((e) => console.warn(e));
+        return next;
+      });
+    }
+    if (Object.keys(sharedFooterUpdates).length > 0) {
+      setFooterSettings((prev) => {
+        const next = { ...prev, ...sharedFooterUpdates };
+        safeStorageSave(STORAGE_KEYS.FOOTER, next);
+        setDoc(doc(db, 'settings', 'footer'), next, { merge: true }).catch((e) => console.warn(e));
+        return next;
+      });
+    }
   };
 
   // Theme Customizer
@@ -1104,7 +1315,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Contact Messages
-  const submitContactMessage = (data: Omit<ContactFormMessage, 'id' | 'created_at' | 'status'>) => {
+  const submitContactMessage = async (data: Omit<ContactFormMessage, 'id' | 'created_at' | 'status'>): Promise<void> => {
     const id = `msg-${Date.now()}`;
     const newMsg: ContactFormMessage = {
       ...data,
@@ -1113,35 +1324,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'unread',
     };
     setContactMessages((prev) => [newMsg, ...prev]);
-    setDoc(doc(db, 'contact_messages', id), newMsg).catch((e) => console.warn(e));
+    try {
+      await setDoc(doc(db, 'contact_messages', id), newMsg);
+    } catch (e) {
+      console.error('Firestore contact message submit error:', e);
+      throw e;
+    }
   };
 
-  const markContactMessageStatus = (id: string, status: 'unread' | 'read' | 'replied') => {
+  const markContactMessageStatus = async (id: string, status: 'unread' | 'read' | 'replied'): Promise<void> => {
     setContactMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, status } : m))
     );
-    setDoc(doc(db, 'contact_messages', id), { status }, { merge: true }).catch((e) => console.warn(e));
+    await setDoc(doc(db, 'contact_messages', id), { status }, { merge: true }).catch((e) => console.warn(e));
   };
 
-  const deleteContactMessage = (id: string) => {
+  const deleteContactMessage = async (id: string): Promise<void> => {
     setContactMessages((prev) => prev.filter((m) => m.id !== id));
-    deleteDoc(doc(db, 'contact_messages', id)).catch((e) => console.warn(e));
+    await deleteDoc(doc(db, 'contact_messages', id)).catch((e) => console.warn(e));
   };
 
   // Footer Settings
-  const updateFooterSettings = (settings: Partial<FooterSettings>) => {
+  const updateFooterSettings = async (settings: Partial<FooterSettings>): Promise<void> => {
     const updated = { ...footerSettings, ...settings };
     setFooterSettings(updated);
-    setDoc(doc(db, 'settings', 'footer'), updated, { merge: true }).catch((e) => console.warn(e));
+    safeStorageSave(STORAGE_KEYS.FOOTER, updated);
+    await setDoc(doc(db, 'settings', 'footer'), updated, { merge: true }).catch((e) => console.warn(e));
+
+    // Synchronize shared contact & brand identity fields with siteSettings
+    const sharedSiteUpdates: Partial<SiteSettings> = {};
+    if (settings.company_name_ar) sharedSiteUpdates.company_name_ar = settings.company_name_ar;
+    if (settings.slogan_ar) sharedSiteUpdates.slogan_ar = settings.slogan_ar;
+    if (settings.phone) sharedSiteUpdates.phone = settings.phone;
+    if (settings.mobile_whatsapp) sharedSiteUpdates.mobile_whatsapp = settings.mobile_whatsapp;
+    if (settings.email) sharedSiteUpdates.email = settings.email;
+    if (settings.logo_url !== undefined) sharedSiteUpdates.logo_url = settings.logo_url;
+    if (settings.branches && settings.branches.length > 0) {
+      const hq = settings.branches.find((b) => b.is_headquarters) || settings.branches[0];
+      if (hq?.address_ar) sharedSiteUpdates.address_ar = hq.address_ar;
+    }
+
+    if (Object.keys(sharedSiteUpdates).length > 0) {
+      setSiteSettings((prev) => {
+        const next = { ...prev, ...sharedSiteUpdates };
+        safeStorageSave(STORAGE_KEYS.SETTINGS, next);
+        setDoc(doc(db, 'settings', 'general'), next, { merge: true }).catch((e) => console.warn(e));
+        return next;
+      });
+    }
   };
 
   // Brands Mode
-  const updateBrandsDisplayMode = (mode: BrandDisplayMode) => {
+  const updateBrandsDisplayMode = async (mode: BrandDisplayMode): Promise<void> => {
     setBrandsDisplayMode(mode);
+    await setDoc(doc(db, 'settings', 'brands_display'), { mode }, { merge: true }).catch((e) => console.warn(e));
   };
 
   // Testimonials Public Submit & Moderation
-  const submitPublicTestimonial = (data: { client_name_ar: string; client_title_ar: string; client_company_ar: string; comment_ar: string; rating: number }) => {
+  const submitPublicTestimonial = async (data: { client_name_ar: string; client_title_ar: string; client_company_ar: string; comment_ar: string; rating: number }): Promise<void> => {
     const id = `test-${Date.now()}`;
     const newTest: Testimonial = {
       ...data,
@@ -1153,7 +1393,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_at: new Date().toISOString(),
     };
     setTestimonials((prev) => [newTest, ...prev]);
-    setDoc(doc(db, 'testimonials', id), newTest).catch((e) => console.warn(e));
+    try {
+      await setDoc(doc(db, 'testimonials', id), newTest);
+    } catch (e) {
+      console.error('Firestore testimonial submit error:', e);
+      throw e;
+    }
   };
 
   const updateTestimonialStatus = (id: string, status: 'approved' | 'pending' | 'rejected') => {
@@ -1406,7 +1651,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Service CRUD
-  const createService = (serviceData: Omit<Service, 'id' | 'created_at' | 'updated_at'>): Service => {
+  const createService = async (serviceData: Omit<Service, 'id' | 'created_at' | 'updated_at'>): Promise<Service> => {
     const id = `srv-${Date.now()}`;
     const newService: Service = {
       ...serviceData,
@@ -1414,25 +1659,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    setServices((prev) => [newService, ...prev]);
-    setDoc(doc(db, 'services', id), newService).catch((e) => console.warn(e));
+    setServices((prev) => {
+      const updated = [newService, ...prev];
+      safeStorageSave(STORAGE_KEYS.SERVICES, updated);
+      return updated;
+    });
+    try {
+      await setDoc(doc(db, 'services', id), newService);
+      console.log(`[Firestore] Service ${id} created on cloud`);
+    } catch (e) {
+      console.error(`[Firestore Error] Service creation failed:`, e);
+      throw e;
+    }
     return newService;
   };
 
-  const updateService = (id: string, serviceData: Partial<Service>) => {
-    setServices((prev) =>
-      prev.map((s) => {
+  const updateService = async (id: string, serviceData: Partial<Service>): Promise<void> => {
+    let targetService: Service | undefined;
+    setServices((prev) => {
+      const updated = prev.map((s) => {
         if (s.id !== id) return s;
-        const updated = { ...s, ...serviceData, updated_at: new Date().toISOString() };
-        setDoc(doc(db, 'services', id), updated, { merge: true }).catch((e) => console.warn(e));
-        return updated;
-      })
-    );
+        return { ...s, ...serviceData, updated_at: new Date().toISOString() };
+      });
+      safeStorageSave(STORAGE_KEYS.SERVICES, updated);
+      targetService = updated.find((s) => s.id === id);
+      return updated;
+    });
+    if (targetService) {
+      try {
+        await setDoc(doc(db, 'services', id), targetService, { merge: true });
+        console.log(`[Firestore] Service ${id} updated on cloud`);
+      } catch (e) {
+        console.error(`[Firestore Error] Service update failed:`, e);
+        throw e;
+      }
+    }
   };
 
-  const deleteService = (id: string) => {
-    setServices((prev) => prev.filter((s) => s.id !== id));
-    deleteDoc(doc(db, 'services', id)).catch((e) => console.warn(e));
+  const deleteService = async (id: string): Promise<void> => {
+    setServices((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+      safeStorageSave(STORAGE_KEYS.SERVICES, updated);
+      return updated;
+    });
+    try {
+      await deleteDoc(doc(db, 'services', id));
+      console.log(`[Firestore] Service ${id} deleted from cloud`);
+    } catch (e) {
+      console.error(`[Firestore Error] Service deletion failed:`, e);
+      throw e;
+    }
   };
 
   const duplicateService = (id: string): Service => {
@@ -1571,17 +1847,108 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Taxonomy & Settings & Users
+  const createDepartment = (deptData: Omit<Department, 'id'>) => {
+    const id = `dept-${Date.now()}`;
+    const newDept: Department = { ...deptData, id };
+    setDepartments((prev) => {
+      const updated = [...prev, newDept].sort((a, b) => a.sort_order - b.sort_order);
+      safeStorageSave(STORAGE_KEYS.DEPARTMENTS, updated);
+      setDoc(doc(db, 'settings', 'taxonomy'), { departments: updated, categories }, { merge: true }).catch((e) => console.warn(e));
+      return updated;
+    });
+  };
+
+  const updateDepartment = (id: string, deptData: Partial<Department>) => {
+    setDepartments((prev) => {
+      const updated = prev.map((d) => (d.id === id ? { ...d, ...deptData } : d)).sort((a, b) => a.sort_order - b.sort_order);
+      safeStorageSave(STORAGE_KEYS.DEPARTMENTS, updated);
+      setDoc(doc(db, 'settings', 'taxonomy'), { departments: updated, categories }, { merge: true }).catch((e) => console.warn(e));
+      return updated;
+    });
+  };
+
+  const deleteDepartment = (id: string) => {
+    setDepartments((prev) => {
+      const updated = prev.filter((d) => d.id !== id);
+      safeStorageSave(STORAGE_KEYS.DEPARTMENTS, updated);
+      setDoc(doc(db, 'settings', 'taxonomy'), { departments: updated, categories }, { merge: true }).catch((e) => console.warn(e));
+      return updated;
+    });
+  };
+
+  const createCategory = (catData: Omit<Category, 'id'>) => {
+    const id = `cat-${Date.now()}`;
+    const newCat: Category = { ...catData, id };
+    setCategories((prev) => {
+      const updated = [...prev, newCat].sort((a, b) => a.sort_order - b.sort_order);
+      safeStorageSave(STORAGE_KEYS.CATEGORIES, updated);
+      setDoc(doc(db, 'settings', 'taxonomy'), { departments, categories: updated }, { merge: true }).catch((e) => console.warn(e));
+      return updated;
+    });
+  };
+
+  const updateCategory = (id: string, catData: Partial<Category>) => {
+    setCategories((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, ...catData } : c)).sort((a, b) => a.sort_order - b.sort_order);
+      safeStorageSave(STORAGE_KEYS.CATEGORIES, updated);
+      setDoc(doc(db, 'settings', 'taxonomy'), { departments, categories: updated }, { merge: true }).catch((e) => console.warn(e));
+      return updated;
+    });
+  };
+
+  const deleteCategory = (id: string) => {
+    setCategories((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      safeStorageSave(STORAGE_KEYS.CATEGORIES, updated);
+      setDoc(doc(db, 'settings', 'taxonomy'), { departments, categories: updated }, { merge: true }).catch((e) => console.warn(e));
+      return updated;
+    });
+  };
+
   const updateSiteSettings = (settings: Partial<SiteSettings>) => {
     setSiteSettings((prev) => {
       const updated = { ...prev, ...settings };
-      try {
-        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
-      } catch (err) {
-        console.warn('localStorage error on updateSiteSettings:', err);
-      }
+      safeStorageSave(STORAGE_KEYS.SETTINGS, updated);
       setDoc(doc(db, 'settings', 'general'), updated, { merge: true }).catch((e) => console.warn(e));
       return updated;
     });
+
+    // Synchronize shared brand & contact fields into heroHeaderSettings & footerSettings
+    const heroSync: Partial<HeroHeaderSettings> = {};
+    const footerSync: Partial<FooterSettings> = {};
+
+    if (settings.logo_url !== undefined) {
+      heroSync.logo_url = settings.logo_url;
+      footerSync.logo_url = settings.logo_url;
+    }
+    if (settings.company_name_ar) {
+      heroSync.company_name_ar = settings.company_name_ar;
+      footerSync.company_name_ar = settings.company_name_ar;
+    }
+    if (settings.slogan_ar) {
+      heroSync.slogan_ar = settings.slogan_ar;
+      footerSync.slogan_ar = settings.slogan_ar;
+    }
+    if (settings.phone) footerSync.phone = settings.phone;
+    if (settings.mobile_whatsapp) footerSync.mobile_whatsapp = settings.mobile_whatsapp;
+    if (settings.email) footerSync.email = settings.email;
+
+    if (Object.keys(heroSync).length > 0) {
+      setHeroHeaderSettings((prev) => {
+        const next = { ...prev, ...heroSync };
+        safeStorageSave(STORAGE_KEYS.HERO_HEADER, next);
+        setDoc(doc(db, 'settings', 'hero_header'), next, { merge: true }).catch((e) => console.warn(e));
+        return next;
+      });
+    }
+    if (Object.keys(footerSync).length > 0) {
+      setFooterSettings((prev) => {
+        const next = { ...prev, ...footerSync };
+        safeStorageSave(STORAGE_KEYS.FOOTER, next);
+        setDoc(doc(db, 'settings', 'footer'), next, { merge: true }).catch((e) => console.warn(e));
+        return next;
+      });
+    }
   };
 
   const addUser = (userData: Omit<User, 'id' | 'createdAt'>) => {
@@ -1658,6 +2025,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateAboutUsData = (data: Partial<AboutUsModuleData>) => {
     const updated = { ...aboutUsData, ...data };
     setAboutUsData(updated);
+    safeStorageSave(STORAGE_KEYS.ABOUT_US, updated);
+    setDoc(doc(db, 'settings', 'about_us'), updated, { merge: true }).catch((e) => console.warn(e));
     setDoc(doc(db, 'settings', 'about_us_module'), updated, { merge: true }).catch((e) => console.warn(e));
   };
 
@@ -1916,6 +2285,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createPortfolioProject,
         updatePortfolioProject,
         deletePortfolioProject,
+        createDepartment,
+        updateDepartment,
+        deleteDepartment,
+        createCategory,
+        updateCategory,
+        deleteCategory,
         updateSiteSettings,
         addUser,
         deleteUser,

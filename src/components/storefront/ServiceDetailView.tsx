@@ -25,7 +25,7 @@ interface ServiceDetailViewProps {
 }
 
 export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({ serviceId }) => {
-  const { services, departments, categories, addToQuote, navigate, packages } = useApp();
+  const { services, departments, categories, addToQuote, navigate, packages, siteSettings } = useApp();
 
   const service = services.find((s) => s.id === serviceId);
 
@@ -184,7 +184,7 @@ export const ServiceDetailView: React.FC<ServiceDetailViewProps> = ({ serviceId 
     };
 
     const message = `السلام عليكم ورحمة الله وبركاته،
-أود طلب عرض سعر رسمي وتفاصيل تنفيذ لدى وكالة رواج للطباعة والإعلان:
+أود طلب عرض سعر رسمي وتفاصيل تنفيذ لدى ${siteSettings.company_name_ar || 'وكالة رواج للطباعة والإعلان'}:
 
 📌 الخدمة: ${service.name_ar}
 🏷️ القسم: ${dept?.name_ar || ''}
@@ -197,7 +197,7 @@ ${specsText}
 ${artworkFileName ? `📎 اسم الملف: ${artworkFileName}\n` : ''}${customNotes ? `📝 ملاحظات خاصة: ${customNotes}\n` : ''}
 يرجى تزويدي بعرض السعر والمدة المتوقعة للإنتاج والتسليم. شكراً لكم!`;
 
-    const phone = '967772110131';
+    const phone = (siteSettings.mobile_whatsapp || '967772110131').replace(/[^0-9]/g, '');
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 

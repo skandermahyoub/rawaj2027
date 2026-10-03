@@ -84,30 +84,12 @@ const CAPABILITIES: CapabilityItem[] = [
 ];
 
 export const HomeHeroHeader: React.FC<HomeHeroHeaderProps> = ({ onOpenCustomQuote }) => {
-  const { heroHeaderSettings, siteSettings, navigate, updateSiteSettings } = useApp();
+  const { heroHeaderSettings, siteSettings, navigate } = useApp();
   const [activeTab, setActiveTab] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!heroHeaderSettings.enabled) return null;
 
   const currentCap = CAPABILITIES[activeTab];
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('حجم الصورة كبير، يرجى اختيار ملف أقل من 5 ميجابايت');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          updateSiteSettings({ logo_url: reader.result });
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleScrollToCalculator = () => {
     const calc = document.getElementById('calculator-module');
@@ -118,20 +100,11 @@ export const HomeHeroHeader: React.FC<HomeHeroHeaderProps> = ({ onOpenCustomQuot
     }
   };
 
-  const whatsappNumber = siteSettings.mobile_whatsapp?.replace(/[^\d+]/g, '') || '+967772110131';
+  const whatsappNumber = (siteSettings.mobile_whatsapp || '+967772110131').replace(/[^0-9]/g, '');
 
   return (
     <section className="relative w-full bg-[#12100F] text-[#F7F4EE] border-b border-[#2B2623] overflow-hidden">
       
-      {/* Hidden file input for logo change by owner */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleLogoUpload} 
-        accept="image/*" 
-        className="hidden" 
-      />
-
       {/* 1. Architectural Texture & Background Lighting */}
       {heroHeaderSettings.bg_image_url ? (
         <div className="absolute inset-0 pointer-events-none opacity-25">
@@ -161,12 +134,19 @@ export const HomeHeroHeader: React.FC<HomeHeroHeaderProps> = ({ onOpenCustomQuot
           {/* Right Column (Col 7): Brand Identity & Value Proposition */}
           <div className="lg:col-span-7 space-y-6 text-right">
             
-            {/* Header Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#B9142D]/15 border border-[#B9142D]/35 text-[#E03A53] text-xs font-bold">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#B9142D]" />
-              <span>{siteSettings.company_name_ar || 'رواج للطباعة والإعلان والديكور'}</span>
-              <span className="text-white/30">•</span>
-              <span className="text-[#C2B7A7] font-medium">الإنتاج والتوريد المؤسسي الشامل</span>
+            {/* Brand Identity Bar with Uploaded Logo + Header Badge */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 p-1.5 flex items-center justify-center shrink-0 overflow-hidden shadow-md">
+                <RawajLogo className="w-full h-full object-contain" />
+              </div>
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#B9142D]/15 border border-[#B9142D]/35 text-[#E03A53] text-xs font-bold">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#B9142D]" />
+                  <span>{siteSettings.company_name_ar || heroHeaderSettings.company_name_ar || 'رواج للطباعة والإعلان والديكور'}</span>
+                  <span className="text-white/30">•</span>
+                  <span className="text-[#C2B7A7] font-medium">{heroHeaderSettings.badge_ar || siteSettings.slogan_ar || 'الإنتاج والتوريد المؤسسي الشامل'}</span>
+                </div>
+              </div>
             </div>
 
             {/* Main Headline */}

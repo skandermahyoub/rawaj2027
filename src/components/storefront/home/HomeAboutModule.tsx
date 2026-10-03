@@ -60,10 +60,10 @@ export const HomeAboutModule: React.FC = () => {
             نبذة عن الوكالة
           </span>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-[#171616] dark:text-[#F5F1EA]">
-            عن رواج للطباعة والإعلان والديكور
+            عن {siteSettings.company_name_ar || 'رواج للطباعة والإعلان والديكور'}
           </h2>
           <p className="text-xs sm:text-sm text-[#746E67] dark:text-[#A0988F] mt-2">
-            رائدون في تجهيز المطبوعات التجارية، الهويات البصرية، والتغليف والواجهات بأسلوب رقمي حديث
+            {siteSettings.slogan_ar || 'رائدون في تجهيز المطبوعات التجارية، الهويات البصرية، والتغليف والواجهات بأسلوب رقمي حديث'}
           </p>
           <div className="w-16 h-1 bg-[#B9142D] mx-auto mt-3 rounded-full" />
         </div>
@@ -94,7 +94,7 @@ export const HomeAboutModule: React.FC = () => {
                 {aboutUsData.gm_title_ar}
               </p>
               <div className="flex items-center justify-center sm:justify-start lg:justify-center gap-4 text-xs text-[#746E67] dark:text-[#A0988F]">
-                <span>+18 عاماً خبرة</span>
+                <span>+{aboutUsData.years_experience || 18} عاماً خبرة</span>
                 <span>•</span>
                 <span>{siteSettings.address_ar.split('-')[0] || 'صنعاء'}</span>
               </div>

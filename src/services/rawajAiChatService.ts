@@ -1,3 +1,5 @@
+import { GoogleGenAI } from '@google/genai';
+
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
@@ -10,12 +12,46 @@ export interface ChatMessage {
   };
 }
 
-const RAWAJ_KNOWLEDGE_BASE = `
-أنت "مساعد رواج الذكي" (Rawaj AI Assistant)، خبير استشاري متقدم للطباعة التجارية، التغليف الفاخر، الدعاية والإعلان والديكور في شركة "مطابع رواج" (صنعاء، اليمن).
+const SYSTEM_INSTRUCTION = `
+أنت "مساعد رواج الذكي" (Rawaj AI Assistant)، الخبير الاستشاري التقني الرائد لمطابع وووكالة "رواج للطباعة والإعلان والتغليف والديكور" في صنعاء، اليمن.
+مهمتك تقديم استشارات دقيقة للعملاء حول:
+1. أنواع الورق وأوزانه (GSM) والفرق بين السلفنة اللامعة والمطفية المخملية (Soft Touch) والورنيش البارز (Spot UV).
+2. تجهيز ملفات الطباعة Prepress (نظام الألوان CMYK، الهامش الآلي Safety Margin، وزيادة القص Bleed).
+3. طباعة وتصنيع العلب والتغليف المقوى (Folding Cartons & Rigid Boxes) والتسليم بدقة.
+4. تصنيع اللوحات الإعلانية والحروف البارزة المضيئة 3D (Stainless & Acrylic Channel Letters).
+5. طباعة الفواتير الكربونية NCR والملصقات بالرول BOPP.
+
+إجاباتك يجب أن تكون باللغة العربية المهنية، واضحة، مختصرة، وتقديم نصائح عملاتية للعميل مع توجيهه لاستخدام سلة الأسعار في المتجر عند الحاجة.
 `;
 
 export async function askRawajAi(userMessage: string, history: ChatMessage[] = []): Promise<ChatMessage> {
-  // Intelligent expert response engine for Rawaj Printing
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+
+  if (apiKey) {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          { role: 'user', parts: [{ text: `${SYSTEM_INSTRUCTION}\n\nسؤال العميل: ${userMessage}` }] }
+        ],
+      });
+
+      const aiText = response.text?.trim();
+      if (aiText) {
+        return {
+          id: 'msg-' + Date.now(),
+          sender: 'assistant',
+          text: aiText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+      }
+    } catch (err) {
+      console.warn('Gemini API call failed, falling back to expert knowledge base:', err);
+    }
+  }
+
+  // Fallback Rule Engine
   const lower = userMessage.toLowerCase();
   let reply = 'أهلاً بك في مطابع رواج للطباعة والتغليف. أنا هنا لمساعدتك في اختيار أفضل خدمات الطباعة والتصميم وتحديد المواصفات بدقة.';
   let suggestedAction = undefined;

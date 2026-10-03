@@ -250,13 +250,20 @@ export const AdminServiceEditor: React.FC<AdminServiceEditorProps> = ({
     );
   };
 
+  // Save State
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   // Save Service
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameAr.trim()) {
       alert('يرجى إدخال اسم الخدمة بالعربية');
       return;
     }
+
+    setIsSaving(true);
+    setSaveError(null);
 
     const payload = {
       name_ar: nameAr,
@@ -281,17 +288,24 @@ export const AdminServiceEditor: React.FC<AdminServiceEditorProps> = ({
       related_service_ids: existingService?.related_service_ids || [],
     };
 
-    if (isEditing && serviceId) {
-      updateService(serviceId, payload);
-    } else {
-      createService(payload);
-    }
+    try {
+      if (isEditing && serviceId) {
+        await updateService(serviceId, payload);
+      } else {
+        await createService(payload);
+      }
 
-    setSavedSuccess(true);
-    setTimeout(() => {
-      setSavedSuccess(false);
-      onNavigateBack();
-    }, 1000);
+      setSavedSuccess(true);
+      setTimeout(() => {
+        setSavedSuccess(false);
+        onNavigateBack();
+      }, 1000);
+    } catch (err: any) {
+      console.error('Failed to save service:', err);
+      setSaveError(err?.message || 'حدث خطأ أثناء الحفظ في قاعدة البيانات السحابية');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const availableCategories = categories.filter((c) => c.department_id === departmentId);
@@ -334,17 +348,24 @@ export const AdminServiceEditor: React.FC<AdminServiceEditorProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            className="bg-[#B9142D] hover:bg-[#930F23] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition-colors"
+            disabled={isSaving}
+            className="bg-[#B9142D] hover:bg-[#930F23] disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
           >
-            <Save className="w-4 h-4" />
-            <span>حفظ التغييرات</span>
+            <Save className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
+            <span>{isSaving ? 'جاري الحفظ في السحابة...' : 'حفظ التغييرات'}</span>
           </button>
         </div>
       </div>
 
+      {saveError && (
+        <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-300 dark:border-red-800 rounded-xl text-red-800 dark:text-red-300 text-xs font-bold text-center">
+          ✕ {saveError}
+        </div>
+      )}
+
       {savedSuccess && (
         <div className="p-3 bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-bold text-center">
-          ✓ تم حفظ بيانات الخدمة والمواصفات بنجاح!
+          ✓ تم حفظ بيانات الخدمة والمواصفات في قاعدة البيانات السحابية بنجاح!
         </div>
       )}
 

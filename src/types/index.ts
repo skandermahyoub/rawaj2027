@@ -371,6 +371,7 @@ export interface SiteSettings {
   slogan_ar: string;
   slogan_en?: string;
   logo_url?: string;
+  admin_passcode?: string;
   founding_year: number;
   phone: string;
   mobile_whatsapp: string;
@@ -401,6 +402,7 @@ export interface HomeSlide {
 
 export interface HeroHeaderSettings {
   enabled: boolean;
+  logo_url?: string;
   company_name_ar: string;
   company_name_en: string;
   slogan_ar: string;

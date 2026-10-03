@@ -92,7 +92,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenSearch, onOpenCustomQu
 
       case 'slider':
         return (
-          <div key="mod-slider" className="w-full">
+          <div key="mod-slider" className={layout === 'compact_cards' ? 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 rounded-3xl overflow-hidden' : 'w-full'}>
             <HomeCinematicSlider />
           </div>
         );
@@ -100,7 +100,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenSearch, onOpenCustomQu
       case 'marquee':
         return (
           <div key="mod-marquee" className="w-full">
-            <HomeMarqueeTicker />
+            <HomeMarqueeTicker variant={layout} />
           </div>
         );
 
@@ -127,7 +127,11 @@ export const HomeView: React.FC<HomeViewProps> = ({ onOpenSearch, onOpenCustomQu
       case 'sector_packages':
         return (
           <div key="mod-packages" id="packages-module" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-            <HomePackages />
+            {layout === 'slider_horizontal' ? (
+              <HomePackagesSlider />
+            ) : (
+              <HomePackages />
+            )}
           </div>
         );
 

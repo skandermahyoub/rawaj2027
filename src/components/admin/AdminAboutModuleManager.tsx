@@ -13,6 +13,7 @@ import {
   Upload
 } from 'lucide-react';
 import { AboutUsModuleData } from '../../types';
+import { optimizeImageFile } from '../../utils/imageOptimizer';
 
 export const AdminAboutModuleManager: React.FC = () => {
   const { aboutUsData, updateAboutUsData } = useApp();
@@ -120,16 +121,15 @@ export const AdminAboutModuleManager: React.FC = () => {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            if (typeof reader.result === 'string') {
-                              setFormData({ ...formData, gm_photo_url: reader.result });
-                            }
-                          };
-                          reader.readAsDataURL(file);
+                          try {
+                            const optimized = await optimizeImageFile(file, 600, 600, 0.85);
+                            setFormData({ ...formData, gm_photo_url: optimized.dataUrl });
+                          } catch (err) {
+                            console.error('Failed to optimize GM photo:', err);
+                          }
                         }
                       }}
                     />

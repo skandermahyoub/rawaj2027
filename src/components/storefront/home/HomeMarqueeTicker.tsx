@@ -15,8 +15,13 @@ import {
 } from 'lucide-react';
 import { MarqueeCategory } from '../../../types';
 
-export const HomeMarqueeTicker: React.FC = () => {
+interface HomeMarqueeTickerProps {
+  variant?: string;
+}
+
+export const HomeMarqueeTicker: React.FC<HomeMarqueeTickerProps> = ({ variant = 'dark_gold' }) => {
   const { marqueeItems, navigate } = useApp();
+  const isCrimson = variant === 'crimson_bold';
   const activeItems = marqueeItems.filter((i) => i.is_active).sort((a, b) => a.sort_order - b.sort_order);
 
   if (activeItems.length === 0) return null;
@@ -61,11 +66,19 @@ export const HomeMarqueeTicker: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full bg-gradient-to-r from-[#700B1A] via-[#B9142D] to-[#700B1A] text-white py-2.5 sm:py-3 overflow-hidden shadow-md z-10 border-y border-[#D4AF37]/30">
+    <div className={`relative w-full ${
+      isCrimson
+        ? 'bg-gradient-to-r from-[#700B1A] via-[#B9142D] to-[#700B1A]'
+        : 'bg-gradient-to-r from-[#12100F] via-[#1C1816] to-[#12100F]'
+    } text-white py-2.5 sm:py-3 overflow-hidden shadow-md z-10 border-y border-[#D4AF37]/30`}>
       
       {/* Visual edge gradient fade */}
-      <div className="absolute left-0 top-0 bottom-0 w-12 sm:w-24 bg-gradient-to-r from-[#700B1A] to-transparent z-10 pointer-events-none" />
-      <div className="absolute right-0 top-0 bottom-0 w-12 sm:w-24 bg-gradient-to-l from-[#700B1A] to-transparent z-10 pointer-events-none" />
+      <div className={`absolute left-0 top-0 bottom-0 w-12 sm:w-24 bg-gradient-to-r ${
+        isCrimson ? 'from-[#700B1A]' : 'from-[#12100F]'
+      } to-transparent z-10 pointer-events-none`} />
+      <div className={`absolute right-0 top-0 bottom-0 w-12 sm:w-24 bg-gradient-to-l ${
+        isCrimson ? 'from-[#700B1A]' : 'from-[#12100F]'
+      } to-transparent z-10 pointer-events-none`} />
 
       {/* Marquee Animation Track */}
       <div className="flex items-center gap-10 whitespace-nowrap animate-marquee-ltr">

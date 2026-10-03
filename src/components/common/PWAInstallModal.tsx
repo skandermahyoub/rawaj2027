@@ -26,6 +26,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [installSuccess, setInstallSuccess] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [showManualGuide, setShowManualGuide] = useState(false);
 
   if (!isOpen) return null;
 
@@ -75,17 +76,9 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
           
           {/* Logo Container (Uses logo from control panel or certified fallback) */}
           <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl bg-[#171413] border-2 border-[#D4AF37] shadow-xl p-1.5 flex items-center justify-center shrink-0 overflow-hidden relative group">
-            {siteSettings.logo_url ? (
-              <img
-                src={siteSettings.logo_url}
-                alt={appName}
-                className="w-full h-full object-contain rounded-xl"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-white">
-                <RawajLogo className="w-full h-full object-contain" />
-              </div>
-            )}
+            <div className="w-full h-full flex items-center justify-center text-white">
+              <RawajLogo className="w-full h-full object-contain rounded-xl" />
+            </div>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-600 border-2 border-[#0F0D0C] flex items-center justify-center text-white shadow-xs" title="تطبيق رواج المعتمد">
               <CheckCircle2 className="w-3.5 h-3.5" />
             </div>
@@ -201,15 +194,21 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
 
           {/* Fallback Install Prompt when deferredPrompt is not ready */}
           {!isInstalled && !isInstallable && !isIOS && (
-            <button
-              onClick={() => {
-                alert('لتثبيت تطبيق رواج مباشرة: اضغط على خيارات المتصفح (⋮) بأعلى الشاشة ثم اختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية".');
-              }}
-              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#B9142D] via-[#A01026] to-[#780A1A] hover:brightness-110 text-white font-heading font-black text-sm shadow-[0_10px_25px_-5px_rgba(185,20,45,0.5)] flex items-center justify-center gap-2.5 transition-all cursor-pointer border border-[#D4AF37]/60"
-            >
-              <Download className="w-5 h-5 text-[#FDE047]" />
-              <span>تثبيت التطبيق على شاشة الهاتف الرئيسية</span>
-            </button>
+            <div className="space-y-2.5">
+              {showManualGuide && (
+                <div className="p-3.5 rounded-2xl bg-[#1A1612] border border-[#D4AF37]/40 space-y-1.5 text-xs text-[#C5BCB0] animate-in fade-in">
+                  <div className="font-bold text-[#D4AF37]">خطوات التثبيت السريع من المتصفح:</div>
+                  <p>اضغط على قائمة خيارات المتصفح <strong className="text-white">(⋮)</strong> بأعلى الشاشة، ثم اختر <strong className="text-white">«تثبيت التطبيق»</strong> أو <strong className="text-white">«إضافة إلى الشاشة الرئيسية»</strong>.</p>
+                </div>
+              )}
+              <button
+                onClick={() => setShowManualGuide((prev) => !prev)}
+                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#B9142D] via-[#A01026] to-[#780A1A] hover:brightness-110 text-white font-heading font-black text-sm shadow-[0_10px_25px_-5px_rgba(185,20,45,0.5)] flex items-center justify-center gap-2.5 transition-all cursor-pointer border border-[#D4AF37]/60"
+              >
+                <Download className="w-5 h-5 text-[#FDE047]" />
+                <span>تثبيت التطبيق على شاشة الهاتف الرئيسية</span>
+              </button>
+            </div>
           )}
 
           {/* Already installed notice */}
