@@ -784,7 +784,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }, (err) => console.warn('Firestore home_slides listener note:', err.message));
 
-      // Settings Listener (Safely preserves user settings, logos, promo banners & hero headers)
+      // Settings Listener (Safely preserves user settings, logos, home module order, promo banners & hero headers)
       unsubSettings = onSnapshot(collection(db, 'settings'), (snapshot) => {
         if (!snapshot.empty) {
           snapshot.forEach((docSnap) => {
@@ -803,6 +803,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 safeStorageSave(STORAGE_KEYS.SETTINGS, merged);
                 return merged;
               });
+            }
+            if (docSnap.id === 'home_modules_order') {
+              const cloud = docSnap.data();
+              if (cloud && Array.isArray(cloud.configs)) {
+                setHomeModulesConfig(cloud.configs);
+                safeStorageSave(STORAGE_KEYS.HOME_MODULES, cloud.configs);
+              }
+            }
+            if (docSnap.id === 'theme_customizer') {
+              const cloud = docSnap.data() as ThemeCustomizerSettings;
+              if (cloud) {
+                setThemeSettings(cloud);
+                applyThemeToDocument(cloud);
+                safeStorageSave(STORAGE_KEYS.THEME_CUSTOM, cloud);
+              }
+            }
+            if (docSnap.id === 'footer') {
+              const cloud = docSnap.data() as FooterSettings;
+              if (cloud) {
+                setFooterSettings(cloud);
+                safeStorageSave(STORAGE_KEYS.FOOTER, cloud);
+              }
+            }
+            if (docSnap.id === 'about_us') {
+              const cloud = docSnap.data() as AboutUsModuleData;
+              if (cloud) {
+                setAboutUsData(cloud);
+                safeStorageSave(STORAGE_KEYS.ABOUT_US, cloud);
+              }
             }
             if (docSnap.id === 'promo_module' || docSnap.id === 'promos') {
               const cloud = docSnap.data() as PromoModuleSettings;
@@ -996,13 +1025,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Home Modules Config & Reordering
   const updateHomeModulesConfig = (configs: HomeModuleConfig[]) => {
     setHomeModulesConfig(configs);
+    safeStorageSave(STORAGE_KEYS.HOME_MODULES, configs);
     setDoc(doc(db, 'settings', 'home_modules_order'), { configs }, { merge: true }).catch((e) => console.warn(e));
   };
 
   const toggleModuleVisibility = (id: HomeModuleId) => {
-    setHomeModulesConfig((prev) =>
-      prev.map((mod) => (mod.id === id ? { ...mod, is_visible: !mod.is_visible } : mod))
-    );
+    setHomeModulesConfig((prev) => {
+      const updated = prev.map((mod) => (mod.id === id ? { ...mod, is_visible: !mod.is_visible } : mod));
+      safeStorageSave(STORAGE_KEYS.HOME_MODULES, updated);
+      setDoc(doc(db, 'settings', 'home_modules_order'), { configs: updated }, { merge: true }).catch((e) => console.warn(e));
+      return updated;
+    });
   };
 
   const reorderHomeModules = (startIndex: number, endIndex: number) => {
@@ -1010,14 +1043,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
       result.splice(endIndex, 0, removed);
-      return result.map((item, index) => ({ ...item, sort_order: index + 1 }));
+      const updated = result.map((item, index) => ({ ...item, sort_order: index + 1 }));
+      safeStorageSave(STORAGE_KEYS.HOME_MODULES, updated);
+      setDoc(doc(db, 'settings', 'home_modules_order'), { configs: updated }, { merge: true }).catch((e) => console.warn(e));
+      return updated;
     });
   };
 
   const updateModuleLayout = (id: HomeModuleId, layout_style: string) => {
-    setHomeModulesConfig((prev) =>
-      prev.map((mod) => (mod.id === id ? { ...mod, layout_style } : mod))
-    );
+    setHomeModulesConfig((prev) => {
+      const updated = prev.map((mod) => (mod.id === id ? { ...mod, layout_style } : mod));
+      safeStorageSave(STORAGE_KEYS.HOME_MODULES, updated);
+      setDoc(doc(db, 'settings', 'home_modules_order'), { configs: updated }, { merge: true }).catch((e) => console.warn(e));
+      return updated;
+    });
   };
 
   // Promo Banners & Module

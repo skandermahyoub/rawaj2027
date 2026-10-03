@@ -2166,7 +2166,7 @@ export const INITIAL_SITE_SETTINGS: SiteSettings = {
   company_name_en: 'Rawaj Printing, Advertising & Decoration',
   slogan_ar: 'شريكك الاستراتيجي في الإنتاج الطباعي والتغليف واللوحات الإعلانية',
   slogan_en: 'Your Strategic Partner in Print Production & Signage',
-  logo_url: '',
+  logo_url: '/src/assets/images/rawaj_hero_storefront_1790822521342.jpg',
   founding_year: 2008,
   phone: '01-202439',
   mobile_whatsapp: '+967772110131',
